@@ -1,8 +1,4 @@
-import { Response } from "node-fetch";
-
-const fetch = require("node-fetch");
-
-export interface Story {
+interface Story {
     app_url: string
     archived: boolean
     blocked: boolean
@@ -51,31 +47,30 @@ export interface Story {
     workflow_state_id: number
 }
 
-export interface StorySearchResults {
+interface StorySearchResults {
     cursors: string[]
     data: Story[]
     next: string | null
     total: number
 }
 
-export class Clubhouse {
-    private apiToken: string;
-
-    constructor(apiToken: string) {
-        this.apiToken = apiToken;
-    }
-
-    private checkStatus(res: Response) {
-        if (res.ok) {
-            return res;
-        } else {
-            throw Error(res.statusText);
-        }
-    }
-
-    public async getStories(search: string, nbr_stories = 10): Promise<StorySearchResults> {
-        return await fetch(`https://api.clubhouse.io/api/v3/search/stories?token=${this.apiToken}&query=${encodeURIComponent(search)}&page_size=${nbr_stories}`)
-            .then(this.checkStatus)
-            .then((res: Response) => res.json());
-    }
+interface Project {
+    abbreviation: string
+    app_url: string
+    archived: boolean
+    color: string
+    created_at: string
+    days_to_thermometer: number
+    description: string
+    entity_type: string
+    external_id: string
+    follower_ids: string[]
+    id: number
+    iteration_length: number
+    name: string
+    show_thermometer: boolean
+    start_time: string
+    stats: object
+    team_id: number
+    updated_at: string
 }

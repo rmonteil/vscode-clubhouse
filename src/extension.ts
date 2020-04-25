@@ -1,26 +1,20 @@
 import * as vscode from 'vscode';
-import { Story, StorySearchResults, Clubhouse } from './modules/clubhouse';
-
-interface SelectedStory {
-    id: number
-    label: string
-    description: string
-    target: any
-}
-
-interface StatusBarStory {
-    id: number
-    label_short: string
-    label_long: string
-}
+import Clubhouse from './clubhouse';
 
 export function activate(context: vscode.ExtensionContext) {
+    const defaultProject: SelectedMenuItem = {
+        id: 0,
+        label: 'All projects',
+        description: '',
+        target: '',
+    };
+
     // Create a status bar item with the selected story label
     let statusBarCurrentStory: vscode.StatusBarItem;
     statusBarCurrentStory = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     statusBarCurrentStory.command = 'vscode-clubhouse.getStories';
     const currentStory: StatusBarStory | undefined = context.workspaceState.get("vs-code.clubhouse.current_story");
-    setStatusBarStory(currentStory, statusBarCurrentStory, context.workspaceState);
+    setStatusBar(currentStory, statusBarCurrentStory, context.workspaceState);
     statusBarCurrentStory.show();
     context.subscriptions.push(statusBarCurrentStory);
 
@@ -49,18 +43,52 @@ export function activate(context: vscode.ExtensionContext) {
 
         vscode.window.showInformationMessage('Clubhouse API token saved!');
     });
-
     context.subscriptions.push(setApiTokenFuntion);
+
+    const getProjectsFunction = vscode.commands.registerCommand('vscode-clubhouse.getProjects', async () => {
+        const apiToken = await vscode.workspace.getConfiguration().get('vscode-clubhouse.api_token');
+        if (apiToken) {
+            const clubhouse = new Clubhouse(apiToken as string);
+            let projects: Project[];
+            try {
+                projects = await clubhouse.getAllProjects();
+                const projectsSelectionList: SelectedMenuItem[] = projects.map((project: Project) => {
+                    return {
+                        id: project.id,
+                        label: project.name,
+                        description: `ID ${project.id}`,
+                        target: '',
+                    };
+                });
+                projectsSelectionList.push(defaultProject);
+                const selectedProject = await vscode.window.showQuickPick(
+                    projectsSelectionList,
+                    { placeHolder: 'Select the project you want to work on.' }) as SelectedMenuItem;
+                context.workspaceState.update('vs-code.clubhouse.current_project', {
+                    id: selectedProject.id,
+                    label: selectedProject.label,
+                    description: '',
+                    target: '',
+                });
+            } catch(e) {
+                vscode.window.showErrorMessage(`Impossible to get stories: ${e}`);
+            }
+        } else {
+            vscode.window.showErrorMessage('Please set an API token first.');
+        }
+    });
+    context.subscriptions.push(getProjectsFunction);
 
     const getStoriesFunction = vscode.commands.registerCommand('vscode-clubhouse.getStories', async () => {
         const apiToken = await vscode.workspace.getConfiguration().get('vscode-clubhouse.api_token');
         if (apiToken) {
             const clubhouse = new Clubhouse(apiToken as string);
             let stories: StorySearchResults;
+            const project: SelectedMenuItem = context.workspaceState.get('vs-code.clubhouse.current_project') || defaultProject;
+            const nbr_items_to_display = await vscode.workspace.getConfiguration().get('vscode-clubhouse.nbr_items_to_display') as number;
             try {
-                stories = await clubhouse.getStories("hermes", 2);
-                // console.log('stories:', stories.data.map((story: Story) => story.name));
-                const storiesSelectionList: SelectedStory[] = stories.data.map((story: Story) => {
+                stories = await clubhouse.getStories(project, nbr_items_to_display);
+                const storiesSelectionList: SelectedMenuItem[] = stories.data.map((story: Story) => {
                     return {
                         id: story.id,
                         label: story.name,
@@ -70,10 +98,10 @@ export function activate(context: vscode.ExtensionContext) {
                 });
                 const selectedStory = await vscode.window.showQuickPick(
                     storiesSelectionList,
-                    { placeHolder: 'Select the story you want to work on.' }) as SelectedStory;
-                setStatusBarStory({
+                    { placeHolder: 'Select the story you want to work on.' }) as SelectedMenuItem;
+                setStatusBar({
                     id: selectedStory.id,
-                    label_short: `${selectedStory.label.substr(0, 30)}...`,
+                    label_short: truncateStr(selectedStory.label),
                     label_long: selectedStory.label
                 }, statusBarCurrentStory, context.workspaceState);
             } catch(e) {
@@ -83,18 +111,18 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showErrorMessage('Please set an API token first.');
         }
     });
-
     context.subscriptions.push(getStoriesFunction);
+
 }
 
 export function deactivate() {}
 
-function setStatusBarStory(story: StatusBarStory | undefined, statusBar: vscode.StatusBarItem, workspaceState: vscode.Memento) {
+function setStatusBar(story: StatusBarStory | undefined, statusBar: vscode.StatusBarItem, workspaceState: vscode.Memento) {
     if (story) {
         statusBar.text = `[CH${story.id}] ${story.label_short}`;
         statusBar.tooltip = story.label_long;
 
-        workspaceState.update("vs-code.clubhouse.current_story", {
+        workspaceState.update('vs-code.clubhouse.current_story', {
             id: story.id,
             label_short: story.label_short,
             label_long: story.label_long,
@@ -102,4 +130,11 @@ function setStatusBarStory(story: StatusBarStory | undefined, statusBar: vscode.
     } else {
         statusBar.text = 'CH: No story selected';
     }
+}
+
+function truncateStr(str: string, maxSize = 30): string {
+    if (str.length > 30) {
+        return `${str.substr(0, maxSize)}...`;
+    }
+    return str;
 }

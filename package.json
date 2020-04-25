@@ -29,6 +29,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Specifies if the extension has been activated providing an API token"
+                },
+                "vscode-clubhouse.nbr_items_to_display": {
+                    "type": "integer",
+                    "default": 6,
+                    "description": "Specifies the number of projects or stories to display in the command palette."
                 }
             }
         },
@@ -37,6 +42,10 @@
                 {
                   "command": "vscode-clubhouse.setApiToken",
                   "when": "workbenchState != empty"
+                },
+                {
+                  "command": "vscode-clubhouse.getProjects",
+                  "when": "workbenchState != empty && config.vscode-clubhouse.enabled"
                 },
                 {
                   "command": "vscode-clubhouse.getStories",
@@ -48,6 +57,11 @@
             {
                 "command": "vscode-clubhouse.setApiToken",
                 "title": "Set API token",
+                "category": "Clubhouse"
+            },
+            {
+                "command": "vscode-clubhouse.getProjects",
+                "title": "Get projects",
                 "category": "Clubhouse"
             },
             {
