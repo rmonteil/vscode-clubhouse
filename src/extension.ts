@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
     statusBarCurrentStory = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     statusBarCurrentStory.command = 'vscode-clubhouse.getStories';
     const currentStory: StatusBarStory | undefined = context.workspaceState.get("vs-code.clubhouse.current_story");
-    setStatusBarStory(currentStory, statusBarCurrentStory);
+    setStatusBarStory(currentStory, statusBarCurrentStory, context.workspaceState);
     statusBarCurrentStory.show();
     context.subscriptions.push(statusBarCurrentStory);
 
@@ -71,16 +71,11 @@ export function activate(context: vscode.ExtensionContext) {
                 const selectedStory = await vscode.window.showQuickPick(
                     storiesSelectionList,
                     { placeHolder: 'Select the story you want to work on.' }) as SelectedStory;
-                context.workspaceState.update("vs-code.clubhouse.current_story", {
-                    id: selectedStory.id,
-                    label: selectedStory.label,
-                });
-                statusBarCurrentStory.text = `CH story: ${selectedStory.label} (#${selectedStory.id})`;
                 setStatusBarStory({
                     id: selectedStory.id,
                     label_short: `${selectedStory.label.substr(0, 30)}...`,
                     label_long: selectedStory.label
-                }, statusBarCurrentStory);
+                }, statusBarCurrentStory, context.workspaceState);
             } catch(e) {
                 vscode.window.showErrorMessage(`Impossible to get stories: ${e}`);
             }
@@ -94,10 +89,16 @@ export function activate(context: vscode.ExtensionContext) {
 
 export function deactivate() {}
 
-function setStatusBarStory(story: StatusBarStory | undefined, statusBar: vscode.StatusBarItem) {
+function setStatusBarStory(story: StatusBarStory | undefined, statusBar: vscode.StatusBarItem, workspaceState: vscode.Memento) {
     if (story) {
         statusBar.text = `[CH${story.id}] ${story.label_short}`;
         statusBar.tooltip = story.label_long;
+
+        workspaceState.update("vs-code.clubhouse.current_story", {
+            id: story.id,
+            label_short: story.label_short,
+            label_long: story.label_long,
+        });
     } else {
         statusBar.text = 'CH: No story selected';
     }
