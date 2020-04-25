@@ -10,8 +10,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:vscode-clubhouse.setApiToken",
-        "onCommand:vscode-clubhouse.getStories"
+        "*"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -25,8 +24,25 @@
                     ],
                     "default": null,
                     "description": "Specifies the Clubhouse API token you generated on Clubhouse.io"
+                },
+                "vscode-clubhouse.enabled": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Specifies if the extension has been activated providing an API token"
                 }
             }
+        },
+        "menus": {
+            "commandPalette": [
+                {
+                  "command": "vscode-clubhouse.setApiToken",
+                  "when": "workbenchState != empty"
+                },
+                {
+                  "command": "vscode-clubhouse.getStories",
+                  "when": "workbenchState != empty && config.vscode-clubhouse.enabled"
+                }
+            ]
         },
         "commands": [
             {

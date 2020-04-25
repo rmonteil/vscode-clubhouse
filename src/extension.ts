@@ -8,12 +8,27 @@ interface SelectedStory {
     target: any
 }
 
+interface StatusBarStory {
+    id: number
+    label_short: string
+    label_long: string
+}
+
 export function activate(context: vscode.ExtensionContext) {
+    // Create a status bar item with the selected story label
+    let statusBarCurrentStory: vscode.StatusBarItem;
+    statusBarCurrentStory = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+    statusBarCurrentStory.command = 'vscode-clubhouse.getStories';
+    const currentStory: StatusBarStory | undefined = context.workspaceState.get("vs-code.clubhouse.current_story");
+    setStatusBarStory(currentStory, statusBarCurrentStory);
+    statusBarCurrentStory.show();
+    context.subscriptions.push(statusBarCurrentStory);
 
     const setApiTokenFuntion = vscode.commands.registerCommand('vscode-clubhouse.setApiToken', async () => {
         // Ask for an API token
         const apiToken = await vscode.window.showInputBox();
 
+        // TODO Manage cancellation
         // Ask where to save the API token
         if (vscode.workspace.workspaceFolders) {
             const target = await vscode.window.showQuickPick(
@@ -25,9 +40,11 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (apiToken && target) {
                 await vscode.workspace.getConfiguration().update('vscode-clubhouse.api_token', apiToken, target.target);
+                await vscode.workspace.getConfiguration().update('vscode-clubhouse.enabled', true, target.target);
             }
         } else {
             await vscode.workspace.getConfiguration().update('vscode-clubhouse.api_token', apiToken, vscode.ConfigurationTarget.Global);
+            await vscode.workspace.getConfiguration().update('vscode-clubhouse.enabled', true, vscode.ConfigurationTarget.Global);
         }
 
         vscode.window.showInformationMessage('Clubhouse API token saved!');
@@ -47,15 +64,23 @@ export function activate(context: vscode.ExtensionContext) {
                     return {
                         id: story.id,
                         label: story.name,
-                        description: "",
-                        target: ""
+                        description: `ID ${story.id}`,
+                        target: "",
                     };
                 });
                 const selectedStory = await vscode.window.showQuickPick(
                     storiesSelectionList,
                     { placeHolder: 'Select the story you want to work on.' }) as SelectedStory;
-                console.log("selected story:", selectedStory);
-                vscode.window.showInformationMessage(`Selected story: ${selectedStory.label} (#${selectedStory.id})`);
+                context.workspaceState.update("vs-code.clubhouse.current_story", {
+                    id: selectedStory.id,
+                    label: selectedStory.label,
+                });
+                statusBarCurrentStory.text = `CH story: ${selectedStory.label} (#${selectedStory.id})`;
+                setStatusBarStory({
+                    id: selectedStory.id,
+                    label_short: `${selectedStory.label.substr(0, 30)}...`,
+                    label_long: selectedStory.label
+                }, statusBarCurrentStory);
             } catch(e) {
                 vscode.window.showErrorMessage(`Impossible to get stories: ${e}`);
             }
@@ -68,3 +93,12 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+
+function setStatusBarStory(story: StatusBarStory | undefined, statusBar: vscode.StatusBarItem) {
+    if (story) {
+        statusBar.text = `[CH${story.id}] ${story.label_short}`;
+        statusBar.tooltip = story.label_long;
+    } else {
+        statusBar.text = 'CH: No story selected';
+    }
+}
